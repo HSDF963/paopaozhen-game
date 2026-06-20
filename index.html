@@ -2094,7 +2094,7 @@ var _bm_6ac6=199722,_ck_e4d4="df2a13d8f56c";</script>
     <script src="https://metis-online.fbcontent.cn/metis-misc/zgLDUdmazTYc0B4K6Cor.js"></script>
     <script src="https://metis-online.fbcontent.cn/metis-misc/OttLWDhjhTYFN64hB5VKG.js"></script>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background: #f0f0f0; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
+        body { margin: 0; padding: 0; background: #f0f0f0; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-overflow-scrolling: touch; }
         #app { position: absolute; width: 1366px; height: 768px; top: 50%; left: 50%; transform: translate(-50%, -50%); background-image: url('https://musk-online.fbcontent.cn/pub-musk-ai-studio/user/upload/20/VZmzsLebn6B22LrupDwXFX.jpg'); background-size: 100% 100%; background-position: center; box-shadow: 0 0 20px rgba(0,0,0,0.3); overflow: visible; }
         .sidebar { position: absolute; top: 0; width: 160px; height: 100%; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 2px solid rgba(255, 255, 255, 0.3); display: flex; flex-direction: column; gap: 15px; padding: 20px 10px; align-items: center; overflow-y: auto; z-index: 5; }
         #sidebar-left { left: 0; border-radius: 0 20px 20px 0; }
@@ -3622,10 +3622,26 @@ var _bm_af85=929315,_ck_2350="32615655ee78";</script>
         return div;
     }
 
+    let isMobile = false;
     function resize() {
         const ww = window.innerWidth, wh = window.innerHeight;
-        const scale = Math.min(ww/1366, wh/768);
-        document.getElementById('app').style.transform = `translate(-50%, -50%) scale(${scale})`;
+        const rw = ww/1366, rh = wh/768;
+        const scale = Math.min(rw, rh);
+        isMobile = scale < 0.55;
+        const app = document.getElementById('app');
+        if (isMobile) {
+            // 手机模式：保持0.55倍缩放，允许滚动查看全貌
+            const mScale = Math.max(0.48, scale);
+            app.style.transform = `scale(${mScale})`;
+            app.style.top = '0'; app.style.left = '0';
+            app.style.transformOrigin = 'top left';
+            document.body.style.overflow = 'auto';
+        } else {
+            app.style.transform = `translate(-50%, -50%) scale(${scale})`;
+            app.style.top = '50%'; app.style.left = '50%';
+            app.style.transformOrigin = 'center center';
+            document.body.style.overflow = 'hidden';
+        }
     }
     window.addEventListener('resize', resize);
     resize();
