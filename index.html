@@ -3585,25 +3585,37 @@ var _bm_af85=929315,_ck_2350="32615655ee78";</script>
     let selectedItems = { left: null, right: null };
     let isProcessing = false;
     let bgmAudio = null;
+    let welcomeAudio = null, guangAudio = null, failAudio = null, runningAudio = null;
     const LEFT_IDS = ['white_bear', 'gem', 'mountain', 'grandma', 'cactus', 'yellow', 'truck', 'mantou', 'girl'];
+
+    // iOS兼容：暂停BGM→播音效→恢复BGM
+    function playSFX(audio) {
+        if (!audio) return;
+        audio.currentTime = 0;
+        const bgmWasOn = bgmAudio && !bgmAudio.paused;
+        if (bgmWasOn) bgmAudio.pause();
+        audio.play().catch(() => {});
+        audio.onended = () => { if (bgmWasOn && bgmAudio) bgmAudio.play().catch(() => {}); };
+    }
 
     let welcomePlayed = false;
     function init() {
-        bgmAudio = new Audio(SOUNDS.bgm);
-        bgmAudio.loop = true;
-        bgmAudio.volume = 0.35;
+        bgmAudio = new Audio(SOUNDS.bgm); bgmAudio.loop = true; bgmAudio.volume = 0.35;
+        welcomeAudio = new Audio('audio/welcome.mp3'); welcomeAudio.volume = 0.9;
+        guangAudio = new Audio(SOUNDS.success);
+        failAudio = new Audio(SOUNDS.fail);
+        [bgmAudio, welcomeAudio, guangAudio, failAudio].forEach(a => a.load());
 
-        // 用户首次交互后播放欢迎语音 + BGM（绕过浏览器自动播放限制）
-        document.addEventListener('pointerdown', function playOnInteract() {
+        function onFirstTouch() {
             if (!welcomePlayed) {
                 welcomePlayed = true;
-                const welcomeAudio = new Audio('audio/welcome.mp3');
-                welcomeAudio.volume = 0.9;
                 welcomeAudio.play().catch(() => {});
                 welcomeAudio.onended = () => { if (bgmAudio) bgmAudio.play().catch(() => {}); };
             }
-            if (bgmAudio && bgmAudio.paused) bgmAudio.play().catch(() => {});
-        }, { once: false });
+            if (bgmAudio && bgmAudio.paused && welcomePlayed) bgmAudio.play().catch(() => {});
+        }
+        ['touchstart','pointerdown','click'].forEach(evt =>
+            document.addEventListener(evt, onFirstTouch, { once: false, passive: true }));
 
         const invLeft = document.getElementById('inventory-left');
         const invRight = document.getElementById('inventory-right');
@@ -3753,15 +3765,15 @@ var _bm_af85=929315,_ck_2350="32615655ee78";</script>
         document.getElementById(sideId).appendChild(el);
     }
 
-    let runningAudio = null;
     function animateCombo() {
         const l = selectedItems.left, r = selectedItems.right;
         l.classList.add('acting'); r.classList.add('acting');
 
-        // 播放移动音效
-        if (runningAudio) runningAudio.pause();
-        runningAudio = new Audio(SOUNDS.running);
-        runningAudio.loop = true;
+        // 播放哒哒哒音效(预创建, iOS兼容)
+        if (!runningAudio) { runningAudio = new Audio(SOUNDS.running); runningAudio.loop = true; runningAudio.load(); }
+        runningAudio.currentTime = 0;
+        const bgmWasOn2 = bgmAudio && !bgmAudio.paused;
+        if (bgmWasOn2) bgmAudio.pause();
         runningAudio.play().catch(() => {});
 
         const targetX = 683, targetY = 504;
@@ -3785,7 +3797,7 @@ var _bm_af85=929315,_ck_2350="32615655ee78";</script>
             ease: "power3.in",
             onComplete: () => {
                 gsap.set([l, r], { marginTop: '0px' });
-                if (runningAudio) { runningAudio.pause(); runningAudio = null; }
+                if (runningAudio) { runningAudio.pause(); } if (bgmAudio && bgmAudio.paused) { bgmAudio.play().catch(() => {}); }
                 triggerExplosion(l, r, targetX, targetY);
             }
         });
@@ -3800,8 +3812,7 @@ var _bm_af85=929315,_ck_2350="32615655ee78";</script>
         const match = RECIPES[`${id1}+${id2}`] || RECIPES[`${id2}+${id1}`];
         if (match) {
             // “咣”音效在这里立刻播放，与爆炸动画完美同步
-            const guangAudio = new Audio(SOUNDS.success);
-            guangAudio.play().catch(() => {});
+            playSFX(guangAudio);
             
             l.style.display = 'none'; r.style.display = 'none';
             const boom = document.getElementById('explosion');
@@ -3812,15 +3823,16 @@ var _bm_af85=929315,_ck_2350="32615655ee78";</script>
                 showResult(match, l, r);
             }});
         } else {
-            new Audio(SOUNDS.fail).play();
+            playSFX(failAudio);
             gsap.to(l, { left: '-=100', duration: 0.4, onComplete: () => resetAll(l, r) });
             gsap.to(r, { left: '+=100', duration: 0.4 });
         }
     }
 
     function showResult(data, l, r) {
-        const resultAudio = new Audio(data.audio);
+        const resultAudio = new Audio(data.audio); resultAudio.load();
         resultAudio.play().catch(() => {});
+        resultAudio.onended = () => { if (bgmAudio && bgmAudio.paused) bgmAudio.play().catch(() => {}); };
 
         // 创建独立舞台，完全脱离 .item 的 CSS 限制
         const res = document.createElement('div');
