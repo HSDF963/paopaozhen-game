@@ -3627,15 +3627,20 @@ var _bm_af85=929315,_ck_2350="32615655ee78";</script>
         const ww = window.innerWidth, wh = window.innerHeight;
         const rw = ww/1366, rh = wh/768;
         const scale = Math.min(rw, rh);
-        isMobile = scale < 0.55;
+        isMobile = scale < 0.6;
         const app = document.getElementById('app');
         if (isMobile) {
-            // 手机模式：保持0.55倍缩放，允许滚动查看全貌
-            const mScale = Math.max(0.48, scale);
+            // 手机模式：0.55倍缩放，初始视口居中（碰撞区可见），左右滑动取物
+            const mScale = Math.max(0.55, scale * 1.15);
             app.style.transform = `scale(${mScale})`;
             app.style.top = '0'; app.style.left = '0';
             app.style.transformOrigin = 'top left';
             document.body.style.overflow = 'auto';
+            document.body.style.overscrollBehavior = 'contain';
+            // 初始滚动位置：居中于碰撞区（683px处），让两侧等距可滚
+            const gameW = 1366 * mScale;
+            const scrollToX = Math.max(0, (gameW - ww) / 2);
+            requestAnimationFrame(() => window.scrollTo(scrollToX, 0));
         } else {
             app.style.transform = `translate(-50%, -50%) scale(${scale})`;
             app.style.top = '50%'; app.style.left = '50%';
