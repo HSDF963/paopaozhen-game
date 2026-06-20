@@ -2094,8 +2094,9 @@ var _bm_6ac6=199722,_ck_e4d4="df2a13d8f56c";</script>
     <script src="https://metis-online.fbcontent.cn/metis-misc/zgLDUdmazTYc0B4K6Cor.js"></script>
     <script src="https://metis-online.fbcontent.cn/metis-misc/OttLWDhjhTYFN64hB5VKG.js"></script>
     <style>
-        html, body { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background: #f0f0f0; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; touch-action: manipulation; user-select: none; -webkit-user-select: none; position: fixed; }
-        #app { position: absolute; width: 1366px; height: 768px; top: 0; left: 0; transform-origin: 0 0; background-image: url('https://musk-online.fbcontent.cn/pub-musk-ai-studio/user/upload/20/VZmzsLebn6B22LrupDwXFX.jpg'); background-size: 100% 100%; background-position: center; box-shadow: 0 0 20px rgba(0,0,0,0.3); overflow: visible; }
+        html, body { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+        #app { position: absolute; width: 1366px; height: 768px; top: 50%; left: 50%; transform: translate(-50%, -50%); background-image: url('https://musk-online.fbcontent.cn/pub-musk-ai-studio/user/upload/20/VZmzsLebn6B22LrupDwXFX.jpg'); background-size: 100% 100%; background-position: center; box-shadow: 0 0 20px rgba(0,0,0,0.3); overflow: visible; }
+        body { background: linear-gradient(135deg, rgba(33,150,243,0.3), rgba(100,181,246,0.25), rgba(33,150,243,0.3)); }
         .sidebar { position: absolute; top: 0; width: 160px; height: 100%; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 2px solid rgba(255, 255, 255, 0.3); display: flex; flex-direction: column; gap: 15px; padding: 20px 10px; align-items: center; overflow-y: auto; z-index: 5; }
         #sidebar-left { left: 0; border-radius: 0 20px 20px 0; }
         #sidebar-right { right: 0; border-radius: 20px 0 0 20px; }
@@ -3588,51 +3589,50 @@ var _bm_af85=929315,_ck_2350="32615655ee78";</script>
     const LEFT_IDS = ['white_bear', 'gem', 'mountain', 'grandma', 'cactus', 'yellow', 'truck', 'mantou', 'girl'];
 
     let welcomePlayed = false;
-    let audioUnlocked = false;
-
-    // iOS 音频解锁：首次用户手势后激活所有音频
-    function unlockAudio() {
-        if (audioUnlocked) return;
-        audioUnlocked = true;
-        // 创建并立即暂停一个静音音频来解锁 AudioContext
-        const tmp = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
-        tmp.play().then(() => { tmp.pause(); tmp.remove(); }).catch(() => {});
-        // 预加载 BGM
-        if (bgmAudio) { bgmAudio.load(); }
-    }
+    let audioReady = false;
 
     function init() {
+        // 预加载所有音频
+        const preloadList = [SOUNDS.bgm, 'audio/welcome.mp3', SOUNDS.running, SOUNDS.success, SOUNDS.fail];
+        preloadList.forEach(src => {
+            const a = new Audio(); a.src = src; a.preload = 'auto'; a.load();
+        });
+
         bgmAudio = new Audio(SOUNDS.bgm);
         bgmAudio.loop = true;
         bgmAudio.volume = 0.35;
         bgmAudio.preload = 'auto';
 
-        // iOS 需要多个事件类型来可靠触发
-        const events = ['pointerdown', 'touchstart', 'click'];
-        function playOnInteract(e) {
-            unlockAudio();
+        // iOS 统一音频解锁
+        function unlockAndPlay(e) {
+            // 解锁 AudioContext
+            if (!audioReady) {
+                audioReady = true;
+                const silent = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+                silent.play().then(() => { silent.pause(); silent.remove(); }).catch(() => {});
+            }
+
             if (!welcomePlayed) {
                 welcomePlayed = true;
-                const welcomeAudio = new Audio('audio/welcome.mp3');
-                welcomeAudio.volume = 0.9;
-                welcomeAudio.preload = 'auto';
-                welcomeAudio.play().catch(() => {});
-                welcomeAudio.onended = () => {
-                    if (bgmAudio && bgmAudio.paused) {
-                        bgmAudio.play().catch(() => {});
-                    }
-                };
-            }
-            // 恢复 BGM（iOS 可能在失焦后暂停）
-            if (bgmAudio && bgmAudio.paused && welcomePlayed) {
+                const wa = new Audio('audio/welcome.mp3');
+                wa.volume = 0.9;
+                wa.preload = 'auto';
+                // 播完欢迎语再播 BGM
+                wa.addEventListener('ended', () => {
+                    if (bgmAudio) { bgmAudio.play().catch(() => {}); }
+                });
+                wa.play().catch(() => {});
+            } else if (bgmAudio && bgmAudio.paused) {
                 bgmAudio.play().catch(() => {});
             }
         }
-        events.forEach(evt => document.addEventListener(evt, playOnInteract, { once: false, passive: true }));
 
-        // iOS 页面恢复可见时恢复 BGM
+        ['pointerdown','touchstart','click'].forEach(evt =>
+            document.addEventListener(evt, unlockAndPlay, { once: false, passive: true }));
+
+        // 页面恢复可见时恢复 BGM
         document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && bgmAudio && bgmAudio.paused && welcomePlayed) {
+            if (!document.hidden && welcomePlayed && bgmAudio && bgmAudio.paused) {
                 bgmAudio.play().catch(() => {});
             }
         });
@@ -3640,7 +3640,7 @@ var _bm_af85=929315,_ck_2350="32615655ee78";</script>
         const invLeft = document.getElementById('inventory-left');
         const invRight = document.getElementById('inventory-right');
         const l_ids = [...LEFT_IDS];
-        const r_ids = ['black_bear', 'apple', 'dragon', 'broom', 'fish', 'blue', 'ladder', 'meatball', 'fish'];
+        const r_ids = ['black_bear', 'apple', 'dragon', 'broom', 'fish', 'blue', 'ladder', 'meatball'];
         const shuffle = (a) => { for(let i=a.length-1; i>0; i--){ const j=Math.floor(Math.random()*(i+1)); [a[i], a[j]]=[a[j], a[i]]; } return a; };
         shuffle(l_ids).forEach(id => invLeft.appendChild(createItemDOM(ITEMS.find(it => it.id === id))));
         shuffle(r_ids).forEach(id => invRight.appendChild(createItemDOM(ITEMS.find(it => it.id === id))));
@@ -3658,11 +3658,8 @@ var _bm_af85=929315,_ck_2350="32615655ee78";</script>
         const app = document.getElementById('app');
         const ww = window.innerWidth, wh = window.innerHeight;
         const scale = Math.min(ww/1366, wh/768);
-        // 标准游戏缩放：计算偏移使画面居中
-        const tx = Math.max(0, (ww - 1366 * scale) / 2 / scale);
-        const ty = Math.max(0, (wh - 768 * scale) / 2 / scale);
-        app.style.transformOrigin = '0 0';
-        app.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+        app.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        app.style.top = '50%'; app.style.left = '50%';
     }
     window.addEventListener('resize', resize);
     resize();
