@@ -2094,8 +2094,8 @@ var _bm_6ac6=199722,_ck_e4d4="df2a13d8f56c";</script>
     <script src="https://metis-online.fbcontent.cn/metis-misc/zgLDUdmazTYc0B4K6Cor.js"></script>
     <script src="https://metis-online.fbcontent.cn/metis-misc/OttLWDhjhTYFN64hB5VKG.js"></script>
     <style>
-        body { margin: 0; padding: 0; background: #f0f0f0; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-overflow-scrolling: touch; }
-        #app { position: absolute; width: 1366px; height: 768px; top: 50%; left: 50%; transform: translate(-50%, -50%); background-image: url('https://musk-online.fbcontent.cn/pub-musk-ai-studio/user/upload/20/VZmzsLebn6B22LrupDwXFX.jpg'); background-size: 100% 100%; background-position: center; box-shadow: 0 0 20px rgba(0,0,0,0.3); overflow: visible; }
+        html, body { width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; background: #f0f0f0; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; touch-action: manipulation; user-select: none; -webkit-user-select: none; position: fixed; }
+        #app { position: absolute; width: 1366px; height: 768px; top: 0; left: 0; transform-origin: 0 0; background-image: url('https://musk-online.fbcontent.cn/pub-musk-ai-studio/user/upload/20/VZmzsLebn6B22LrupDwXFX.jpg'); background-size: 100% 100%; background-position: center; box-shadow: 0 0 20px rgba(0,0,0,0.3); overflow: visible; }
         .sidebar { position: absolute; top: 0; width: 160px; height: 100%; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 2px solid rgba(255, 255, 255, 0.3); display: flex; flex-direction: column; gap: 15px; padding: 20px 10px; align-items: center; overflow-y: auto; z-index: 5; }
         #sidebar-left { left: 0; border-radius: 0 20px 20px 0; }
         #sidebar-right { right: 0; border-radius: 20px 0 0 20px; }
@@ -3588,22 +3588,54 @@ var _bm_af85=929315,_ck_2350="32615655ee78";</script>
     const LEFT_IDS = ['white_bear', 'gem', 'mountain', 'grandma', 'cactus', 'yellow', 'truck', 'mantou', 'girl'];
 
     let welcomePlayed = false;
+    let audioUnlocked = false;
+
+    // iOS 音频解锁：首次用户手势后激活所有音频
+    function unlockAudio() {
+        if (audioUnlocked) return;
+        audioUnlocked = true;
+        // 创建并立即暂停一个静音音频来解锁 AudioContext
+        const tmp = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+        tmp.play().then(() => { tmp.pause(); tmp.remove(); }).catch(() => {});
+        // 预加载 BGM
+        if (bgmAudio) { bgmAudio.load(); }
+    }
+
     function init() {
         bgmAudio = new Audio(SOUNDS.bgm);
         bgmAudio.loop = true;
         bgmAudio.volume = 0.35;
+        bgmAudio.preload = 'auto';
 
-        // 用户首次交互后播放欢迎语音 + BGM（绕过浏览器自动播放限制）
-        document.addEventListener('pointerdown', function playOnInteract() {
+        // iOS 需要多个事件类型来可靠触发
+        const events = ['pointerdown', 'touchstart', 'click'];
+        function playOnInteract(e) {
+            unlockAudio();
             if (!welcomePlayed) {
                 welcomePlayed = true;
                 const welcomeAudio = new Audio('audio/welcome.mp3');
                 welcomeAudio.volume = 0.9;
+                welcomeAudio.preload = 'auto';
                 welcomeAudio.play().catch(() => {});
-                welcomeAudio.onended = () => { if (bgmAudio) bgmAudio.play().catch(() => {}); };
+                welcomeAudio.onended = () => {
+                    if (bgmAudio && bgmAudio.paused) {
+                        bgmAudio.play().catch(() => {});
+                    }
+                };
             }
-            if (bgmAudio && bgmAudio.paused) bgmAudio.play().catch(() => {});
-        }, { once: false });
+            // 恢复 BGM（iOS 可能在失焦后暂停）
+            if (bgmAudio && bgmAudio.paused && welcomePlayed) {
+                bgmAudio.play().catch(() => {});
+            }
+        }
+        events.forEach(evt => document.addEventListener(evt, playOnInteract, { once: false, passive: true }));
+
+        // iOS 页面恢复可见时恢复 BGM
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && bgmAudio && bgmAudio.paused && welcomePlayed) {
+                bgmAudio.play().catch(() => {});
+            }
+        });
 
         const invLeft = document.getElementById('inventory-left');
         const invRight = document.getElementById('inventory-right');
@@ -3622,79 +3654,35 @@ var _bm_af85=929315,_ck_2350="32615655ee78";</script>
         return div;
     }
 
-    let isMobile = false;
     function resize() {
-        const ww = window.innerWidth, wh = window.innerHeight;
-        const rw = ww/1366, rh = wh/768;
-        const scale = Math.min(rw, rh);
-        isMobile = scale < 0.6;
         const app = document.getElementById('app');
-        if (isMobile) {
-            const mScale = Math.max(0.5, Math.min(rw, rh) * 1.12);
-            const gw = 1366 * mScale, gh = 768 * mScale;
-            // 计算居中偏移
-            const tx = Math.max(0, (ww - gw) / 2 / mScale);
-            const ty = Math.max(0, (wh - gh) / 2 / mScale);
-            app.style.transformOrigin = '0 0';
-            app.style.transform = `translate(${tx}px, ${ty}px) scale(${mScale})`;
-            app.style.top = '0'; app.style.left = '0';
-            // 让 body 的可滚动区域匹配视觉尺寸
-            document.body.style.minWidth = gw + 'px';
-            document.body.style.minHeight = gh + 'px';
-            document.body.style.overflow = 'auto';
-            document.body.style.overscrollBehavior = 'contain';
-            document.documentElement.style.overflow = 'auto';
-            // 初始滚动居中
-            if (gw > ww) { requestAnimationFrame(() => window.scrollTo((gw - ww) / 2, 0)); }
-            if (gh > wh) { requestAnimationFrame(() => window.scrollTo(window.scrollX, (gh - wh) / 2)); }
-        } else {
-            app.style.transform = `translate(-50%, -50%) scale(${scale})`;
-            app.style.top = '50%'; app.style.left = '50%';
-            app.style.transformOrigin = 'center center';
-            document.body.style.overflow = 'hidden';
-            document.body.style.minWidth = ''; document.body.style.minHeight = '';
-            document.documentElement.style.overflow = '';
-        }
+        const ww = window.innerWidth, wh = window.innerHeight;
+        const scale = Math.min(ww/1366, wh/768);
+        // 标准游戏缩放：计算偏移使画面居中
+        const tx = Math.max(0, (ww - 1366 * scale) / 2 / scale);
+        const ty = Math.max(0, (wh - 768 * scale) / 2 / scale);
+        app.style.transformOrigin = '0 0';
+        app.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
     }
     window.addEventListener('resize', resize);
     resize();
     init();
+    resize();
+    init();
 
-    // ===== 音乐控制按钮 =====
+    // ===== 音乐控制按钮（iOS 兼容） =====
     (function setupMusicControl() {
         const btn = document.getElementById('music-btn');
         const slider = document.getElementById('volume-slider');
         const range = document.getElementById('vol-range');
         let muted = false, prevVol = 35;
+        let longPressTimer = null;
 
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (muted) {
-                // 取消静音
-                muted = false; btn.classList.remove('muted');
-                btn.textContent = '🔊';
-                if (bgmAudio) { bgmAudio.volume = prevVol / 100; bgmAudio.play().catch(()=>{}); }
-            } else {
-                // 切换音量滑块显示
-                slider.classList.toggle('show');
-            }
-        });
-
-        range.addEventListener('input', () => {
-            const vol = parseInt(range.value) / 100;
-            if (bgmAudio) bgmAudio.volume = vol;
-            prevVol = range.value;
-            if (vol === 0) { muted = true; btn.classList.add('muted'); btn.textContent = '🔇'; }
-        });
-
-        // 右键/长按静音
-        btn.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
+        function toggleMute() {
             muted = !muted;
             if (muted) {
                 btn.classList.add('muted'); btn.textContent = '🔇';
-                prevVol = range.value;
-                range.value = 0;
+                prevVol = range.value; range.value = 0;
                 if (bgmAudio) bgmAudio.volume = 0;
             } else {
                 btn.classList.remove('muted'); btn.textContent = '🔊';
@@ -3702,9 +3690,29 @@ var _bm_af85=929315,_ck_2350="32615655ee78";</script>
                 if (bgmAudio) bgmAudio.volume = prevVol / 100;
             }
             slider.classList.remove('show');
+        }
+
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); e.preventDefault();
+            if (muted) { toggleMute(); }
+            else { slider.classList.toggle('show'); }
         });
 
-        // 点击其他地方关闭滑块
+        // iOS 长按静音（替代右键）
+        btn.addEventListener('touchstart', (e) => {
+            longPressTimer = setTimeout(() => { toggleMute(); }, 600);
+        }, { passive: true });
+        btn.addEventListener('touchend', () => { clearTimeout(longPressTimer); });
+        btn.addEventListener('touchmove', () => { clearTimeout(longPressTimer); });
+
+        range.addEventListener('input', () => {
+            const vol = parseInt(range.value) / 100;
+            if (bgmAudio) bgmAudio.volume = vol;
+            prevVol = range.value;
+            if (vol === 0) { muted = true; btn.classList.add('muted'); btn.textContent = '🔇'; }
+            else { muted = false; btn.classList.remove('muted'); btn.textContent = '🔊'; }
+        });
+
         document.addEventListener('click', (e) => {
             if (!slider.contains(e.target) && e.target !== btn) {
                 slider.classList.remove('show');
