@@ -3630,22 +3630,30 @@ var _bm_af85=929315,_ck_2350="32615655ee78";</script>
         isMobile = scale < 0.6;
         const app = document.getElementById('app');
         if (isMobile) {
-            // 手机模式：0.55倍缩放，初始视口居中（碰撞区可见），左右滑动取物
-            const mScale = Math.max(0.55, scale * 1.15);
-            app.style.transform = `scale(${mScale})`;
+            const mScale = Math.max(0.5, Math.min(rw, rh) * 1.12);
+            const gw = 1366 * mScale, gh = 768 * mScale;
+            // 计算居中偏移
+            const tx = Math.max(0, (ww - gw) / 2 / mScale);
+            const ty = Math.max(0, (wh - gh) / 2 / mScale);
+            app.style.transformOrigin = '0 0';
+            app.style.transform = `translate(${tx}px, ${ty}px) scale(${mScale})`;
             app.style.top = '0'; app.style.left = '0';
-            app.style.transformOrigin = 'top left';
+            // 让 body 的可滚动区域匹配视觉尺寸
+            document.body.style.minWidth = gw + 'px';
+            document.body.style.minHeight = gh + 'px';
             document.body.style.overflow = 'auto';
             document.body.style.overscrollBehavior = 'contain';
-            // 初始滚动位置：居中于碰撞区（683px处），让两侧等距可滚
-            const gameW = 1366 * mScale;
-            const scrollToX = Math.max(0, (gameW - ww) / 2);
-            requestAnimationFrame(() => window.scrollTo(scrollToX, 0));
+            document.documentElement.style.overflow = 'auto';
+            // 初始滚动居中
+            if (gw > ww) { requestAnimationFrame(() => window.scrollTo((gw - ww) / 2, 0)); }
+            if (gh > wh) { requestAnimationFrame(() => window.scrollTo(window.scrollX, (gh - wh) / 2)); }
         } else {
             app.style.transform = `translate(-50%, -50%) scale(${scale})`;
             app.style.top = '50%'; app.style.left = '50%';
             app.style.transformOrigin = 'center center';
             document.body.style.overflow = 'hidden';
+            document.body.style.minWidth = ''; document.body.style.minHeight = '';
+            document.documentElement.style.overflow = '';
         }
     }
     window.addEventListener('resize', resize);
